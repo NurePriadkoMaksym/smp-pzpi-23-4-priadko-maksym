@@ -1,0 +1,237 @@
+#!/bin/bash
+
+SCRIPT_VER="1.0"
+IS_SILENT=false
+TARGET_GROUP=""
+SOURCE_CSV=""
+
+for param in "$@"; do
+    case "$param" in
+        --help)
+            echo "Використання: $0 [назва_групи] [файл_розкладу.csv]"
+            echo "  --help         Показати довідку"
+            echo "  --version      Показати версію"
+            echo "  -q, --quiet    Приховати вивід у терміналі"
+            exit 0
+            ;;
+        --version)
+            echo "Версія скрипта: $SCRIPT_VER"
+            exit 0
+            ;;
+        -q|--quiet)
+            IS_SILENT=true
+            ;;
+        *.csv)
+            SOURCE_CSV="$param"
+            ;;
+        *)
+            TARGET_GROUP="$param"
+            ;;
+    esac
+done
+
+notify() {
+    if [ "$IS_SILENT" = false ]; then
+        echo "$@"
+    fi
+}
+
+if [ -z "$SOURCE_CSV" ]; then
+    schedule_files=($(ls -t | grep '^TimeTable_.._.._20..\.csv'))
+    if [ ${#schedule_files[@]} -eq 0 ]; then
+        echo "Файли типу TimeTable_ДД_ММ_РРРР.csv не знайдені." >&2
+        exit 1
+    fi
+    schedule_files+=("Вихід")
+    notify "Оберіть файл з розкладом:"
+    select chosen in "${schedule_files[@]}"; do
+        if [ "$chosen" = "Вихід" ]; then
+            notify "Скасовано."
+            exit 0
+        elif [ -n "$chosen" ]; then
+            SOURCE_CSV="$chosen"
+            notify "Обрано: $chosen"
+            break
+        else
+            notify "Невірний вибір. Спробуйте ще раз."
+        fi
+    done
+fi
+
+if [ ! -f "$SOURCE_CSV" ]; then
+    echo "Файл '$SOURCE_CSV' не існує." >&2
+    exit 1
+fi
+
+group_list=($(sed 's/\r/\n/g' "$SOURCE_CSV" | iconv -f cp1251 -t utf-8 2>/dev/null | tee __groups_temp.csv | awk '
+    BEGIN { FPAT="[^,]*|\"[^\"]*\"" }
+    NR > 1 {
+        gsub(/^"|"$/, "", $1)
+        split($1, tokens, " ")
+        for (i in tokens) {
+            if (tokens[i] ~ /^ПЗПІ-23-[0-9]+$/) print tokens[i]
+        }
+    }' | sort -u))
+
+if [ ${#group_list[@]} -eq 0 ]; then
+    echo "Групи у форматі ПЗПІ-23-ЧИСЛО не знайдені." >&2
+    exit 1
+fi
+
+if [ -n "$TARGET_GROUP" ] && [ ${#group_list[@]} -eq 1 ] && [ "$TARGET_GROUP" != "${group_list[0]}" ]; then
+    notify "Увага: файл містить лише одну групу: ${group_list[0]}"
+    exit 0
+fi
+
+if [ -z "$TARGET_GROUP" ]; then
+    if [ ${#group_list[@]} -eq 1 ]; then
+        TARGET_GROUP="${group_list[0]}"
+        notify "Знайдено єдину групу: $TARGET_GROUP"
+    else
+        notify "Оберіть групу:"
+        group_list+=("Назад")
+        select selected_group in "${group_list[@]}"; do
+            if [ "$selected_group" = "Назад" ]; then
+                notify "Назад до вибору файлу."
+                exit 0
+            elif [ -n "$selected_group" ]; then
+                TARGET_GROUP="$selected_group"
+                notify "Обрана група: $TARGET_GROUP"
+                break
+            else
+                notify "Неправильний вибір."
+            fi
+        done
+    fi
+fi
+
+parse_mode=$(sed 's/\r/\n/g' "$SOURCE_CSV" | iconv -f cp1251 -t utf-8 | awk '
+    BEGIN { FPAT="[^,]*|\"[^\"]*\"" }
+    NR > 1 {
+        gsub(/^"|"$/, "", $1)
+        split($1, parts, " ")
+        if (parts[0] ~ /^ПЗПІ-23-[0-9]+$/) {
+            print "normal"
+        } else if ($5 ~ /^ПЗПІ-23-[0-9]+$/) {
+            print "fallback:" $5
+        }
+        exit
+    }')
+
+if [[ "$parse_mode" =~ ^fallback:(.*) ]]; then
+    fallback_group="${BASH_REMATCH[1]}"
+    notify "Виявлено fallback-режим. Група: $fallback_group"
+    TARGET_GROUP="$fallback_group"
+    IS_FALLBACK=true
+    sed 's/\r/\n/g' "$SOURCE_CSV" | iconv -f cp1251 -t utf-8
+    exit 0
+fi
+
+IS_FALLBACK=false
+notify "Розклад для: $TARGET_GROUP"
+
+output_csv="Google_$(basename "$SOURCE_CSV")"
+temp1=$(mktemp)
+temp2=$(mktemp)
+
+sed 's/\r/\n/g' "$SOURCE_CSV" | iconv -f cp1251 -t utf-8 | awk -v GR="$TARGET_GROUP" -v FB="$IS_FALLBACK" '
+BEGIN {
+    FS=","; OFS="\t"
+}
+NR == 1 { next }
+
+function clean(s) {
+    gsub(/^"|"$/, "", s)
+    return s
+}
+
+function key(date, time) {
+    split(date, d, "."); split(time, t, ":")
+    return sprintf("%04d%02d%02d%02d%02d", d[3], d[2], d[1], t[1], t[2])
+}
+
+{
+    line = $0
+    match(line, /"[0-3][0-9]\.[0-1][0-9]\.[0-9]{4}"/)
+    if (RSTART == 0) next
+
+    part1 = substr(line, 1, RSTART - 2)
+    rest = substr(line, RSTART)
+
+    n = 0; in_q = 0; fld = ""
+    for (i = 1; i <= length(rest); i++) {
+        c = substr(rest, i, 1)
+        if (c == "\"") in_q = !in_q
+        else if (c == "," && !in_q) {
+            arr[++n] = fld; fld = ""
+        } else fld = fld c
+    }
+    arr[++n] = fld
+    for (i = 1; i <= n; i++) arr[i] = clean(arr[i])
+    if (n < 12) next
+
+    if (FB == "true") {
+        subj = clean(part1)
+    } else {
+        match(part1, /(ПЗПІ-[0-9]+-[0-9]+)[[:space:]]*-[[:space:]]*/, m)
+        if (m[1] != GR) next
+        part1 = substr(part1, RSTART + RLENGTH)
+        gsub(/^[[:space:]]+/, "", part1)
+        subj = part1
+    }
+
+    desc = arr[11]
+    typ = "Інше"
+    if (desc ~ /Лб/) typ = "Лб"
+    else if (desc ~ /Лк/) typ = "Лк"
+    else if (desc ~ /Пз/) typ = "Пз"
+    else if (desc ~ /Екз|Exam|екзамен/i) typ = "Екз"
+
+    print subj, typ, arr[1], arr[2], arr[3], arr[4], desc, key(arr[1], arr[2])
+}
+' > "$temp1"
+
+sort -t $'\t' -k8,8 "$temp1" > "$temp2"
+
+awk -F'\t' '
+BEGIN {
+    OFS = ","
+    print "Subject", "Start Date", "Start Time", "End Date", "End Time", "Description"
+}
+function fmt_date(d) {
+    split(d, a, ".")
+    return sprintf("%02d/%02d/%04d", a[2], a[1], a[3])
+}
+function fmt_time(t) {
+    split(t, tm, ":")
+    h = tm[1] + 0
+    m = tm[2]
+    ampm = (h >= 12) ? "PM" : "AM"
+    if (h == 0) h = 12
+    else if (h > 12) h -= 12
+    return sprintf("%02d:%s %s", h, m, ampm)
+}
+{
+    k = $1 "_" $2
+    dkey = $3 "_" $7
+    if ($2 == "Лб") {
+        if (!(dkey in l_seen)) {
+            count[k]++
+            l_seen[dkey] = count[k]
+        }
+        n = l_seen[dkey]
+    } else {
+        count[k]++
+        n = count[k]
+    }
+
+    full_subject = $1 "; №" n
+    print "\"" full_subject "\"", "\"" fmt_date($3) "\"", "\"" fmt_time($4) "\"", "\"" fmt_date($5) "\"", "\"" fmt_time($6) "\"", "\"" $7 "\""
+}
+' "$temp2" > "$output_csv"
+
+if [ "$IS_SILENT" = false ]; then
+    cat "$output_csv"
+fi
+
+rm -f "$temp1" "$temp2" __groups_temp.csv
