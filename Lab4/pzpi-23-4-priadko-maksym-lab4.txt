@@ -1,0 +1,137 @@
+﻿Харківський національний університет радіоелектроніки
+Факультет комп’ютерних наук
+
+Кафедра програмної інженерії
+
+
+
+
+
+ЗВІТ
+з лабораторної роботи №4
+з дисципліни «Скриптові мови програмування»
+
+
+Виконав 								Перевірив
+ст. гр. ПЗПІ-23-4							ст. викладач катедри ПІ
+Прядко Максим							Сокорчук Ігор Петрович	
+	
+
+
+
+
+
+
+
+
+
+Харків 2025
+1 ІСТОРІЯ ЗМІН
+№ДатаВерсіяОпис змін104.06.20251.0Створено розділи «Завдання», «Хід роботи» та «Висновки»
+2 ЗАВДАННЯ
+Використовуючи матеріал попередніх лабораторних робіт, потрібно додати
+такий функціонал:
+1. Прибрати дублювання шапки і підвалу сайту (якщо воно є).
+2. Додати сторінку логіна. Обмежити доступ до сайту не залогіненим
+користувачам.
+3. Додати сторінку профілю з можливістю завантажити фото.
+
+3 ХІД РОБОТИ
+Оновимо файл session.php,  додамо обмеження доступу до сторінок якщо користувач не є авторизованим.
+ 
+1. function require_login() {
+2. if (!isset($_SESSION['user'])) {
+3. header('Location: login.php');
+4. exit;
+5. }
+Далі реалізуємо екран реєстрації. У ньому реалізуємо перевірку на наявність користувача у базі, також використаємо хешування паролю для покращеної безпеки даних
+1. if ($_SERVER["REQUEST_METHOD"] === "POST") {
+2. $username = trim($_POST["username"]);
+3. $password = $_POST["password"];
+4. $confirm = $_POST["confirm"];
+
+5. if ($password !== $confirm) {
+6. $error = "Паролі не збігаються!";
+7. } elseif (empty($username) || empty($password)) {
+8. $error = "Заповніть усі поля!";
+9. } else {
+10. $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+11. $stmt->execute([$username]);
+12. if ($stmt->fetch()) {
+13. $error = "Користувач із таким ім'ям уже існує!";
+14. } else {
+15. $hashed = password_hash($password, PASSWORD_DEFAULT);
+16. $stmt = $pdo->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+17. $stmt->execute([$username, $hashed]);
+
+18. $_SESSION['user'] = $pdo->lastInsertId();
+19. header("Location: index.php");
+20. exit;
+21. }
+22. }
+23. }
+Також зробимо сторінку для авторизації.
+1. if ($_SERVER["REQUEST_METHOD"] === "POST") {
+2. $username = trim($_POST["username"]);
+3. $password = $_POST["password"];
+
+4. $stmt = $pdo->prepare("SELECT id, password FROM users WHERE username = ?");
+5. $stmt->execute([$username]);
+6. $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+7. if ($user && password_verify($password, $user["password"])) {
+8. $_SESSION["user"] = $user["id"];
+9. header("Location: index.php");
+10. exit;
+11. } else {
+12. $error = "Невірне ім’я користувача або пароль!";
+13. }
+14. }
+
+Ще реалізуємо сторінку профілю користувача. Тут користувач може додати інформацію про себе, завантажити фото, та вийти зі свого облікового запису.
+1. $userId = $_SESSION['user'];
+2. if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+3. $firstName = trim($_POST['first_name']);
+4. $lastName = trim($_POST['last_name']);
+5. $birthdate = trim($_POST['birthdate']);
+6. $description = trim($_POST['description']);
+7. if (!empty($_FILES['avatar']['name'])) {
+8. $uploadDir = 'avatars/';
+9. if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+
+10. $ext = pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION);
+11. $filename = 'avatar_' . $userId . '.' . $ext;
+12. $filepath = $uploadDir . $filename;
+
+13. if (move_uploaded_file($_FILES['avatar']['tmp_name'], $filepath)) {
+14. $stmt = $pdo->prepare("UPDATE users SET avatar = ? WHERE id = ?");
+15. $stmt->execute([$filepath, $userId]);
+16. }
+17. }
+18. $stmt = $pdo->prepare("UPDATE users SET first_name = ?, last_name = ?, birthdate = ?, description = ? WHERE id = ?");
+19. $stmt->execute([$firstName, $lastName, $birthdate, $description, $userId]);
+
+20. $success = "Профіль оновлено!";
+21. }
+22. $stmt = $pdo->prepare("SELECT username, first_name, last_name, birthdate, description, avatar FROM users WHERE id = ?");
+23. $stmt->execute([$userId]);
+24. $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+
+4 ВИСНОВКИ
+У цій роботі я поглибив свої знання мови PHP, доповнив веб-сторінку можливістю реєстрації та авторизації, і реалізував профіль користувача.
+
+
+
+ДОДАТОК А
+Посилання на відео-звіт: https://youtu.be/4nf4R_GiPo4
+Хронологічний опис відеозапису: 
+00:00 — Вітання
+00:28 — Показ бази даних SQLite
+00:58 — Код. Заборона переходу на деякі сторінки без авторизації
+01:50 — Код. Реєстрація користувача
+04:15 — Код. Авторизація користувача
+05:04 — Код. Налаштування профілю
+06:53 — Перевірка роботи програми
+
