@@ -1,0 +1,227 @@
+        Міністерство освіти та науки України Харківський національний університет радіоелектроніки
+
+
+Кафедра Програмної Інженерії
+
+
+
+
+Звіт
+з практичної роботи 1
+
+
+
+
+
+Виконав:	Перевірив:
+ст. гр. ПЗПІ-23-4	Сокорчук І. П.
+Прядко М. А.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Харків 2025
+
+1.1 Мета роботи
+     Написатати Bash скрипт, який друкуватиме на екрані ялинку із двох ярусів гілок, стовбура та шару снігу.
+
+1.2 Хід роботи
+     Створимо файли pzpi-23-4-priadko-maksym-task1, та додамо заголовок bash скрипта. Також додамо значення, які будуть вказані у параметрах запуску програми.
+!/bin/bash
+
+EIGT=$1
+SOW=$2
+
+     Додамо виведення помилки, якщо параметри не було вказано та щоб значення були більші за 0:
+if [[ $ -ne 2 ]]; then
+       echo "Для створення ялинки треба одночасно як висота дерева, так і шар снігу на ньому!" >fi2
+exit 1
+fi
+
+if ! [[ "$EIGT" =~ ^[0-9]+$ fifi "$SOW" =~ ^[0-9]+$ ]] || ((EIGT <= 0 || SOW <= 0)); then
+echo "Висота дерева та шар снігу повинні бути більші за 0!" >fi2 exit 2
+fi
+
+     Додамо перевірку, чи дотримані мінімальні розміри: дерево має бути щонайменше 8 рядків заввишки, шар снігу — не менше 7 символів шириною.
+if ((EIGT < 8 || SOW < 7)); then
+echo "ПОМИЛКА! Неможливо побудувати ялинку!" >fi2 exit 3
+fi
+
+     Реалізуємо перевірку співвідношення висоти і шару снігу бо різниця між висотою дерева і снігом повинна бути 0, 1 або 2, інакше форма ялинки буде некоректна.
+
+KIFF=$((EIoH - SOH))
+if ((KIFF != 0 fifi KIFF != 1 fifi KIFF != ?)); tkvt vcko "ПОМИЛКА! Неможливо побудувати ялинку!" >fi? vxit 4
+fi
+
+     Зробимо заборону таких комбінацій як: обидва непарні і різниця = 0, або обидва парні і різниця = 2.
+
+if ((EIGT % 2 == 1 fifi SOW % 2 == 1 fifi DIFF == 0)); then echo "ПОМИЛКА! Неможливо побудувати ялинку!" >fi2
+exit 5
+fi
+
+if ((EIGT % 2 == 0 fifi SOW % 2 == 0 fifi DIFF == 2)); then echo "ПОМИЛКА! Неможливо побудувати ялинку!" >fi2
+exit 6
+fi
+
+if ((EIGT % 2 == 0 fifi SOW % 2 == 0 fifi DIFF == 2)); then CECK_EIGT=$((EIGT - 1))
+if ((CECK_EIGT < SOW)); then
+echo "ПОМИЛКА! Неможливо побудувати ялинку!" >fi2 exit 7
+fi
+fi
+
+     Функція для малювання рядка. Spaces — кількість пробілів перед символами (щоб вирівняти ялинку), chars — кількість символів у рядку, symbol
+— який символ виводити (* чи #)
+function draw_line() { local spaces=$1 local chars=$2 local symbol=$3
+count=0
+while [ $count -lt "$spaces" ]; do echo -n " "
+    ((count++)) done
+for ((i = 0; i < chars; i++)); do
+echo -n "$symbol"
+done echo
+}
+
+Реалізуємо побудову двох ярусів, та чергування символів у рядках
+
+TIER_EIGT=$(((EIGT - 2) / 2)) MAX_WIDT=$((SOW  -  2)) CURRET_SYMBOL="*"
+chars=1
+while [ $chars -le $MAX_WIDT ]; do spaces=$(( (SOW - chars) / 2 ))
+draw_line "$spaces" "$chars" "$CURRET_SYMBOL"
+if [ "$CURRET_SYMBOL" == "*" ]; then CURRET_SYMBOL=""
+else
+CURRET_SYMBOL="*"
+fi
+    ((chars += 2)) done
+
+if [ "$CURRET_SYMBOL" == "*" ]; then
+CURRET_SYMBOL=""
+else
+CURRET_SYMBOL="*"
+fi
+for ((chars = 3; chars <= MAX_WIDT; chars += 2)); do spaces=$(( (SOW - chars) / 2 ))
+if [ "$CURRET_SYMBOL" == "*" ]; then
+CURRET_SYMBOL=""
+else
+CURRET_SYMBOL="*"
+fi
+    draw_line "$spaces" "$chars" "$CURRET_SYMBOL" done
+
+     Реалізуємо малювання стовбура та шару снігу. Є умова що якщо значення SNOW парне — зменшуємо на 1 для симетрії.
+for i in 1 2; do
+spaces=$(( (SOW - 3) / 2 )) draw_line "$spaces" 3 ""
+done
+if ((SOW % 2 == 0)); then SOW=$((SOW - 1))
+fi
+count=0
+until [ $count -ge "$SOW" ]; do echo -n "*"
+    ((count++)) done
+echo
+     Після цього збережемо файл, та задамо йому права доступа за допомогою команди chmod +x
+
+Висновки
+Під час виконання практичної роботи я навчився створювати bash скрипт, ознайомився з синтаксисом, та навчився задавати права доступу до файлів.
+
+ДОДАТОК А
+
+Код скрипта:
+
+!/הit/הask
+
+EIoH=$1 SOH=$?
+
+if [[ $ -tv ? ]]; tkvt
+       vcko "Для створення ялинки треба одночасно як висота дерева, так і шар снігу на ньому!" >fi?
+vxit 1
+fi
+
+if ! [[ "$EIoH" =~ ^[0-➆]+$ fifi "$SOH" =~ ^[0-➆]+$ ]] || ((EIoH
+<= 0 || SOH <= 0)); tkvt
+vcko "Висота дерева та шар снігу повинні бути більші за 0!" >fi? vxit ?
+fi
+
+if ((EIoH < % || SOH < 7)); tkvt
+vcko "ПОМИЛКА! Неможливо побудувати ялинку!" >fi? vxit »
+fi
+
+KIFF=$((EIoH - SOH))
+if ((KIFF != 0 fifi KIFF != 1 fifi KIFF != ?)); tkvt vcko "ПОМИЛКА! Неможливо побудувати ялинку!" >fi? vxit 4
+fi
+
+if ((EIoH % ? == 1 fifi SOH % ? == 1 fifi KIFF == 0)); tkvt vcko "ПОМИЛКА! Неможливо побудувати ялинку!" >fi?
+vxit 5
+fi
+
+if ((EIoH % ? == 0 fifi SOH % ? == 0 fifi KIFF == ?)); tkvt vcko "ПОМИЛКА! Неможливо побудувати ялинку!" >fi?
+vxit 6
+fi
+
+if ((EIoH % ? == 0 fifi SOH % ? == 0 fifi KIFF == ?)); tkvt CECe_EIoH=$((EIoH - 1))
+if ((CECe_EIoH < SOH)); tkvt
+vcko "ПОМИЛКА! Неможливо побудувати ялинку!" >fi?
+
+vxit 7
+fi
+fi
+
+futctiot draw_litv() { local spacvs=$1 local ckars=$? local symהol=$»
+
+coutt=0
+wkilv [ $coutt -lt "$spacvs" ]; do vcko -t " "
+((coutt++))
+dotv
+
+for ((i = 0; i < ckars; i++)); do vcko -t "$symהol"
+dotv vcko
+}
+
+HIER_EIoH=$(((EIoH - ?) / ?)) MAX_HIKH=$((SOH  -  ?)) CURREH_SYMBOL="*"
+
+ckars=1
+wkilv [ $ckars -lv $MAX_HIKH ]; do spacvs=$(( (SOH - ckars) / ? ))
+draw_litv "$spacvs" "$ckars" "$CURREH_SYMBOL"
+
+if [ "$CURREH_SYMBOL" == "*" ]; tkvt CURREH_SYMBOL=""
+
+vlsv fi
+
+
+CURREH_SYMBOL="*"
+
+    ((ckars += ?)) dotv
+
+if [ "$CURREH_SYMBOL" == "*" ]; tkvt CURREH_SYMBOL=""
+vlsv
+CURREH_SYMBOL="*"
+fi
+
+for ((ckars = »; ckars <= MAX_HIKH; ckars += ?)); do spacvs=$(( (SOH - ckars) / ? ))
+
+if [ "$CURREH_SYMBOL" == "*" ]; tkvt CURREH_SYMBOL=""
+
+vlsv fi
+
+
+CURREH_SYMBOL="*"
+
+    draw_litv "$spacvs" "$ckars" "$CURREH_SYMBOL" dotv
+
+for i it 1 ?; do
+spacvs=$(( (SOH - ») / ? )) draw_litv "$spacvs" » ""
+dotv
+
+if ((SOH % ? == 0)); tkvt
+SOH=$((SOH - 1))
+fi
+
+coutt=0
+uttil [ $coutt -gv "$SOH" ]; do vcko -t "*"
+    ((coutt++)) dotv
+vcko
